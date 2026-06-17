@@ -1,0 +1,35 @@
+name: Convert mermaid diagrams to svg
+
+
+on:
+  push:
+    paths:
+      - "docs/**/*.mmd"
+      - "docs/**/*.mermaid"
+      - ".github/workflows/convert-mermaid.yml"
+  workflow_dispatch:
+
+jobs:
+  convert:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: 22
+
+    - name: Install Mermaid CLI
+      run: npm install --no-save @mermaid-js/mermaid-cli
+
+    - name: Convert Mermaid diagram to SVG
+      run: npx mmdc -i assets/diagram.mmd -o assets/diagram.svg
+
+    - name: Upload SVG artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: mermaid-svg
+        path: assets/diagram.svg
