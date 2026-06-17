@@ -1,6 +1,5 @@
 name: Convert mermaid diagrams to svg
 
-
 on:
   push:
     paths:
@@ -9,6 +8,9 @@ on:
       - ".github/workflows/convert-mermaid.yml"
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   convert:
     runs-on: ubuntu-latest
@@ -16,13 +18,16 @@ jobs:
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
 
     - name: Set up Node.js
       uses: actions/setup-node@v4
       with:
         node-version: 22
 
-    - name: Install Mermaid CLI
+    - name: Install Mermaid CLI and Puppeteer
       run: npm install --no-save @mermaid-js/mermaid-cli puppeteer
 
     - name: Create Puppeteer config
@@ -37,11 +42,23 @@ jobs:
         }
         EOF
 
-    - name: Convert Mermaid diagram to SVG
-      run: npx mmdc -p puppeteer-config.json -i asssets/diagram.mmd -o asssets/diagram.svg
 
-    - name: Upload SVG artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: mermaid-svg
-        path: asssets/diagram.svg
+    - name: Render all Mermaid diagrams
+      run: |
+        mkdir -p assets/generated
+        find docs -name "*.mmd" | while read -r file; do
+          base="$(basename "$file" .mmd)"
+          npx mmdc -p puppeteer-config.json -i "$file" -o "assets/generated/${base}.svg"
+        done
+
+    - name: Commit generated SVGs if changed
+      run: |
+        if ! git diff --quiet assets/generated; then
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/generated
+          git commit -m "Update generated Mermaid diagrams"
+          git push
+        else
+          echo "No diagram changes to commit"
+        fi
